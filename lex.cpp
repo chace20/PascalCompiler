@@ -153,7 +153,7 @@ int main() {
     FILE *errFile;
 
     // read
-    if ((sourceFile = fopen("H:\\Git\\PascalCompiler\\source.pas", "r")) == NULL) {
+    if ((sourceFile = fopen("source.pas", "r")) == NULL) {
         printf("can't open source file");
         exit(0);
     }
@@ -164,13 +164,13 @@ int main() {
     fclose(sourceFile);
 
     // write
-    if ((lexFile = fopen("H:\\Git\\PascalCompiler\\source.dyd", "w")) == NULL) {
+    if ((lexFile = fopen("source.dyd", "w")) == NULL) {
         printf("can't open lex file");
         exit(0);
     }
 
     // error
-    if ((errFile = fopen("H:\\Git\\PascalCompiler\\source.err", "w")) == NULL) {
+    if ((errFile = fopen("lex.err", "w")) == NULL) {
         printf("can't open error file");
         exit(0);
     }
