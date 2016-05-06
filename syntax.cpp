@@ -16,6 +16,8 @@
 #define SYMBOL_NO_MATCH 4
 // 缺少参数
 #define ERR_NO_PARA 5
+// 执行语句错误
+#define ERR_EXECUTE 6
 
 // types
 typedef enum {
@@ -240,8 +242,11 @@ void error(int lineNum, int errType, const char *symbol) {
             break;
         case ERR_NO_PARA:
             printf("**LINE:%d procedure lack para %s\n", lineNum, symbol);
-            fprintf(errFile, "**LINE:%d procedure lack para %s\n", lineNum, symbol);
+            fprintf(errFile, "***LINE:%d procedure lack para %s\n", lineNum, symbol);
             break;
+        case ERR_EXECUTE:
+            printf("***LINE:%d after %s no execute sentence\n", lineNum, token[pToken]);
+            fprintf(errFile, "***LINE:%d after %s no execute sentence\n", lineNum, token[pToken]);
         default:
             printf("***LINE:%d unknow error\n", lineNum);
             fprintf(errFile, "***LINE:%d unknow error\n", lineNum);
@@ -282,7 +287,7 @@ bool isVarExisted(char *vname, char *vproc, int vkind) {
         }
     }
     for (int j = 0; j < proCount; ++j) {
-        if (strcmp(vname, proArray[j].pname)) {
+        if (strcmp(vname, proArray[j].pname) == 0) {
             return true;
         }
     }
@@ -291,12 +296,12 @@ bool isVarExisted(char *vname, char *vproc, int vkind) {
 
 bool isProExisted(char *vname) {
     for (int i = 0; i < varCount; ++i) {
-        if (strcmp(vname, varArray[i].vname)) {
+        if (strcmp(vname, varArray[i].vname) == 0) {
             return true;
         }
     }
     for (int j = 0; j < proCount; ++j) {
-        if (strcmp(vname, proArray[j].pname)) {
+        if (strcmp(vname, proArray[j].pname) == 0) {
             return true;
         }
     }
@@ -342,11 +347,12 @@ void C() {
 }
 
 void C_() {
-    if (strcmp(token[pToken], ";") == 0 && strcmp(token[getNextToken()], "integer") == 0) {
+    if (strcmp(token[pToken], ";") == 0) {
         nextToken();
         E();
         C_();
     } else {
+        // TODO empty
         if (strcmp(token[pToken], "integer") == 0) {
             error(lineNum, SYMBOL_NONE, ";");
             E();
@@ -417,6 +423,7 @@ void K() {}
 
 /* 函数说明 */
 void G() {
+    proTable proBackup = currentPro;
     if (strcmp(token[pToken], "integer") == 0) {
         nextToken();
     } else {
@@ -427,7 +434,7 @@ void G() {
     } else {
         error(lineNum, SYMBOL_NONE, "function");
     }
-
+    I();
     /* 处理过程 */
     strcpy(currentPro.pname, token[pToken]);
     currentPro.ptype = integer;
@@ -438,7 +445,6 @@ void G() {
     if (isProExisted(token[pToken])) {
         error(lineNum, SYMBOL_REDEFINED, token[pToken]);
     }
-    I();
 
     if (strcmp(token[pToken], "(") == 0) {
         nextToken();
@@ -461,6 +467,7 @@ void G() {
     }
 
     M();
+    currentPro = proBackup;
 }
 
 void L() {
@@ -502,12 +509,16 @@ void D() {
 void D_() {
     if (strcmp(token[pToken], ";") == 0) {
         nextToken();
+        N();
+        D_();
     } else {
-        error(lineNum, SYMBOL_NONE, ";");
+        if(strcmp(token[pToken], "end") != 0){
+            error(lineNum, SYMBOL_NONE, ";");
+            N();
+            D_();
+        }
     }
     // TODO 空的处理
-    N();
-    D_();
 }
 
 void N() {
@@ -521,7 +532,8 @@ void N() {
         // 标识符
         Q();
     } else {
-        error(lineNum, -1, token[pToken]);
+        error(lineNum, ERR_EXECUTE, token[pToken]);
+        nextToken();
     }
 }
 
@@ -570,7 +582,7 @@ void P() {
 }
 
 void Q() {
-    if ((!isVarExisted(token[pToken], currentPro.pname, 0)) && (!isVarExisted(token[pToken], currentPro.pname, 1))) {
+    if ((!isVarExisted(token[pToken], currentPro.pname, 0)) && (!isVarExisted(token[pToken], currentPro.pname, 1)) && (!isProExisted(token[pToken]))) {
         error(lineNum, SYMBOL_UNDEFINED, token[pToken]);
     }
     H();
@@ -590,12 +602,15 @@ void S() {
 void S_() {
     if (strcmp(token[pToken], "-") == 0) {
         nextToken();
+        T();
+        S_();
     } else {
-        error(lineNum, SYMBOL_NONE, "-");
+        if ((category[pToken] == 10) || (category[pToken] == 11)) {
+            T();
+            S_();
+        }
     }
-    // TODO handle empty
-    T();
-    S_();
+    // TODO empty
 }
 
 void T() {
@@ -606,11 +621,14 @@ void T() {
 void T_() {
     if (strcmp(token[pToken], "*") == 0) {
         nextToken();
+        U();
+        T_();
     } else {
-        error(lineNum, SYMBOL_NONE, "*");
+        if ((category[pToken] == 10) || (category[pToken] == 11)) {
+            U();
+            T_();
+        }
     }
-    U();
-    T_();
 }
 
 void U() {
@@ -618,7 +636,7 @@ void U() {
         if ((!isVarExisted(token[pToken], currentPro.pname, 0)) && (!isVarExisted(token[pToken], currentPro.pname, 1))) {
             error(lineNum, SYMBOL_UNDEFINED, token[pToken]);
         }
-        H(); // 标识符
+        I(); // 标识符
     } else if (category[pToken] == 11) {
         V(); // 常数
     } else if (strcmp(token[getNextToken()], "(") == 0) {
@@ -649,6 +667,7 @@ void R() {
     } else {
         error(lineNum, SYMBOL_NONE, "else");
     }
+    N();
 }
 
 void Y() {
@@ -658,7 +677,7 @@ void Y() {
 }
 
 void Z() {
-    if (category[pToken] >= 12 || category[pToken] <= 17) {
+    if (category[pToken] >= 12 && category[pToken] <= 17) {
         // 关系运算符
         nextToken();
     } else {
@@ -667,6 +686,9 @@ void Z() {
 }
 
 void W() {
+    if (!isProExisted(token[pToken])) {
+        error(lineNum, SYMBOL_UNDEFINED, token[pToken]);
+    }
     I();
     if (strcmp(token[pToken], "(") == 0) {
         nextToken();
