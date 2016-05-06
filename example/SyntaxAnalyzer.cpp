@@ -92,7 +92,7 @@ void X();
 void Y();
 void Z();
 /*初始化函数：从输入文件读取数据，建立各个文件，初始化全局变量*/
-bool init(int argc, char* argv[]);
+bool init();
 /*结束处理函数，将var和pro数组中的元素输出到相应文件，填充输出文件*/
 bool final();
 /*错误处理函数，参数分别为行号、错误码和错误符号*/
@@ -137,57 +137,15 @@ FILE* proFile;//过程文件句柄
 /*主函数*/
 int main(int argc, char* argv[])
 {
-	if (init(argc, argv))
-	{
+	if (init())
 		A();
 		final();
-	}
 	return 0;
 }
-bool init(int argc, char* argv[])
+bool init()
 {
-	if (argc != 2)
-	{
-		return false;
-	}
-	else
-	{
-		char* inFilename = argv[1];
-		char outFilename[MAX_COUNT] = "";
-		char errFilename[MAX_COUNT] = "";
-		char varFilename[MAX_COUNT] = "";
-		char proFilename[MAX_COUNT] = "";
-		char filename[MAX_COUNT] = "";
-		char path[MAX_COUNT] = "";
-		//获得文件名（不包括扩展名）和路径
-		getFilename(inFilename, filename);
-		getPath(inFilename, path);
-		//生成输出文件全部路径
-
-		strcat(outFilename, path);
-		//strcat(outFilename, "\\");
-		strcat(outFilename, filename);
-		strcat(outFilename, ".dys");
-		//生成错误文件全部路径
-
-		strcat(errFilename, path);
-		//strcat(errFilename, "\\");
-		strcat(errFilename, filename);
-		strcat(errFilename, ".err");
-		//生成变量文件全部路径
-
-		strcat(varFilename, path);
-		//strcat(varFilename, "\\");
-		strcat(varFilename, filename);
-		strcat(varFilename, ".var");
-		//生成过程文件全部路径
-
-		strcat(proFilename, path);
-		//strcat(proFilename, "\\");
-		strcat(proFilename, filename);
-		strcat(proFilename, ".pro");
 		//打开文件句柄
-		if ((inFile = fopen(inFilename, "r")) && (outFile = fopen(outFilename, "w")) && (errFile = fopen(errFilename, "w")) && (varFile = fopen(varFilename, "w")) && (proFile = fopen(proFilename, "w")))
+		if ((inFile = fopen("source.dyd", "r")) && (outFile = fopen("source.dys", "w")) && (errFile = fopen("syntax.err", "w")) && (varFile = fopen("source.var", "w")) && (proFile = fopen("source.pro", "w")))
 		{
 			//初始化单词指针、字符指针、行号、层次
 			inputCount = 0;
@@ -236,7 +194,7 @@ bool init(int argc, char* argv[])
 
 
 	}
-}
+
 bool final()
 {
 	for (int i = 0; i < varCount; i++)
