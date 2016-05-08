@@ -14,10 +14,8 @@
 #define SYMBOL_NONE 3
 // 符号不匹配
 #define SYMBOL_NO_MATCH 4
-// 缺少参数
-#define ERR_NO_PARA 5
 // 执行语句错误
-#define ERR_EXECUTE 6
+#define ERR_EXECUTE 5
 
 // types
 typedef enum {
@@ -118,17 +116,11 @@ void output();
 void error(int lineNum, int errNum, const char *symbol);
 
 // 移动pToken
-bool nextToken();
-
-// 移动pChar
-bool nextChar();
+bool advance();
 
 bool isVarExisted(char *vname, char *vproc, int vkind);
 
 bool isProExisted(char *name);
-
-// 获得下一pToken，pToken本身不变
-int getNextToken();
 
 // 保存词法分析获得的符号
 char token[MAX_COUNT][16];
@@ -138,8 +130,6 @@ int category[MAX_COUNT];
 int tokenCount = 0;
 // 指向当前符号
 int pToken = 0;
-// 指向当前符号的当前字符
-int pChar = 0;
 
 int lineNum = 1;
 
@@ -229,7 +219,7 @@ void error(int lineNum, int errType, const char *symbol) {
             fprintf(errFile, "***LINE: %d %s symbol no match\n", lineNum, token[pToken]);
             break;
         case SYMBOL_NONE:
-            printf("***LINE:%d after %s lack %s\n", lineNum, token[pToken], symbol);
+            printf("***LINE:%d near %s lack %s\n", lineNum, token[pToken], symbol);
             fprintf(errFile, "***LINE:%d after %s lack %s\n", lineNum, token[pToken], symbol);
             break;
         case SYMBOL_REDEFINED:
@@ -240,10 +230,10 @@ void error(int lineNum, int errType, const char *symbol) {
             printf("***LINE:%d %s symbol undefined\n", lineNum, token[pToken]);
             fprintf(errFile, "***LINE:%d %s symbol undefined\n", lineNum, token[pToken]);
             break;
-        case ERR_NO_PARA:
-            printf("**LINE:%d procedure lack para %s\n", lineNum, symbol);
-            fprintf(errFile, "***LINE:%d procedure lack para %s\n", lineNum, symbol);
-            break;
+//        case ERR_NO_PARA:
+//            printf("**LINE:%d procedure lack para %s\n", lineNum, symbol);
+//            fprintf(errFile, "***LINE:%d procedure lack para %s\n", lineNum, symbol);
+//            break;
         case ERR_EXECUTE:
             printf("***LINE:%d after %s no execute sentence\n", lineNum, token[pToken]);
             fprintf(errFile, "***LINE:%d after %s no execute sentence\n", lineNum, token[pToken]);
@@ -254,9 +244,8 @@ void error(int lineNum, int errType, const char *symbol) {
     }
 }
 
-bool nextToken() {
+bool advance() {
     pToken++;
-    pChar = 0;
     // 如果是换行
     while (strcmp(token[pToken], "EOLN") == 0) {
         pToken++;
@@ -269,20 +258,15 @@ bool nextToken() {
     return false;
 }
 
-bool nextChar() {
-    // 如果已经移动到符号结尾
-    if (token[pToken][pChar] == '\0') {
-        return true;
-    }
-    pChar++;
-    return false;
-}
-
 bool isVarExisted(char *vname, char *vproc, int vkind) {
     for (int i = 0; i < varCount; ++i) {
+        // 不需要判断vkind吧
         if ((strcmp(vname, varArray[i].vname) == 0)
             && (strcmp(vproc, varArray[i].vproc))
             && (vkind == varArray[i].vkind)) {
+            return true;
+        }
+        if (strcmp(vname, varArray[i].vname) == 0 && vkind == varArray[i].vkind) {
             return true;
         }
     }
@@ -308,34 +292,27 @@ bool isProExisted(char *vname) {
     return false;
 }
 
-int getNextToken() {
-    // 不移动pToken
-    int pNextToken = pToken + 1;
-    while (strcmp(token[pNextToken], "EOLN") == 0) {
-        pNextToken++;
-    }
-    return pNextToken;
-}
-
 void A() {
     B();
 }
 
 void B() {
     if (strcmp(token[pToken], "begin") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "begin");
     }
     C();
     if (strcmp(token[pToken], ";") == 0) {
-        nextToken();
+        advance();
     } else {
-        error(lineNum, SYMBOL_NONE, ";");
+        if(strcmp(token[pToken], "integer") == 0) {
+            error(lineNum, SYMBOL_NONE, ";");
+        }
     }
     D();
     if (strcmp(token[pToken], "end") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "end");
     }
@@ -348,7 +325,7 @@ void C() {
 
 void C_() {
     if (strcmp(token[pToken], ";") == 0) {
-        nextToken();
+        advance();
         E();
         C_();
     } else {
@@ -365,45 +342,49 @@ void E() {
     // 用pToken+1而不是getNextToken的原因是getNextToken会忽略换行
     if (strcmp(token[pToken + 1], "function") == 0) {
         G();
-    } else {
+    } else if (strcmp(token[pToken], "integer") == 0) {
         F();
     }
+    // 否则是空产生式
 }
 
 void F() {
     if (strcmp(token[pToken], "integer") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "integer");
-        nextToken();
+        advance();
     }
     // H()放到最后为了匹配更多的错
     H();
 }
 
 void H() {
-    /* 处理变量 */
-    strcpy(currentVar.vname, token[pToken]);
-    strcpy(currentVar.vproc, currentPro.pname);
-    if (pToken == currentPro.para) {
-        currentVar.vkind = 1; // 形参
-        currentPro.paraIsDefined = true;
-    } else {
-        currentVar.vkind = 0;
-    }
-    currentVar.vtype = integer;
-    currentVar.vlev = currentPro.plev;
-    currentVar.vadr = varCount;
-    if (isVarExisted(token[pToken], currentPro.pname, currentVar.vkind)) {
-        error(lineNum, SYMBOL_REDEFINED, token[pToken]);// 变量重复定义
-    } else {
-        if (currentPro.varCount == 0) {
-            currentPro.fadr = currentVar.vadr; // 过程的第一个变量
+    /* 处理变量 第一个if判断是否是变量声明语句或函数声明语句*/
+    if (strcmp(token[pToken - 1], "integer") == 0 || strcmp(token[pToken - 2], "integer") == 0) {
+        strcpy(currentVar.vname, token[pToken]);
+        strcpy(currentVar.vproc, currentPro.pname);
+        // TODO 形参与变量
+        if (strcmp(currentVar.vproc, "") != 0) {
+            currentVar.vkind = 1; // 形参
+            currentPro.paraIsDefined = true;
+        } else {
+            currentVar.vkind = 0;
         }
-        currentPro.ladr = currentVar.vadr; // 过程的最后一个变量
-        currentPro.varCount++;
-        varArray[varCount] = currentVar;
-        varCount++;
+        currentVar.vtype = integer;
+        currentVar.vlev = currentPro.plev;
+        currentVar.vadr = varCount;
+        if (isVarExisted(token[pToken], currentPro.pname, currentVar.vkind)) {
+            error(lineNum, SYMBOL_REDEFINED, token[pToken]);// 变量重复定义
+        } else {
+            if (currentPro.varCount == 0) {
+                currentPro.fadr = currentVar.vadr; // 过程的第一个变量
+            }
+            currentPro.ladr = currentVar.vadr; // 过程的最后一个变量
+            currentPro.varCount++;
+            varArray[varCount] = currentVar;
+            varCount++;
+        }
     }
     // 转到标识符
     I();
@@ -412,7 +393,7 @@ void H() {
 void I() {
     // 标识符
     if (category[pToken] == 10) {
-        nextToken();
+        advance();
     }
 }
 /*
@@ -423,51 +404,52 @@ void K() {}
 
 /* 函数说明 */
 void G() {
-    proTable proBackup = currentPro;
+//    proTable proBackup = currentPro;
     if (strcmp(token[pToken], "integer") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "integer");
     }
     if (strcmp(token[pToken], "function") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "function");
     }
     I();
-    /* 处理过程 */
-    strcpy(currentPro.pname, token[pToken]);
+    /* 处理过程 回退一格*/
+    strcpy(currentPro.pname, token[pToken - 1]);
     currentPro.ptype = integer;
     currentPro.plev++;
     currentPro.varCount = 0;
     currentPro.paraIsDefined = false;
 
-    if (isProExisted(token[pToken])) {
-        error(lineNum, SYMBOL_REDEFINED, token[pToken]);
+    if (isProExisted(token[pToken - 1])) {
+        error(lineNum, SYMBOL_REDEFINED, token[pToken - 1]);
     }
 
     if (strcmp(token[pToken], "(") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "(");
     }
 
     currentPro.para = pToken;
+    currentPro.paraIsDefined = true;
     L();
 
     if (strcmp(token[pToken], ")") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, ")");
     }
     if (strcmp(token[pToken], ";") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, ";");
     }
 
     M();
-    currentPro = proBackup;
+//    currentPro = proBackup;
 }
 
 void L() {
@@ -476,26 +458,27 @@ void L() {
 
 void M() {
     if (strcmp(token[pToken], "begin") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "begin");
     }
     C();
-    // TODO
-    if (!currentPro.paraIsDefined) {
-        error(lineNum, ERR_NO_PARA, token[currentPro.para]);
-    }
+
     proArray[proCount] = currentPro; // 加入procedure表
     proCount++;
+    // TODO
+//    if (!currentPro.paraIsDefined) {
+//        error(lineNum, ERR_NO_PARA, token[currentPro.para]);
+//    }
 
-    if (strcmp(token[pToken], ";") == 0) {
-        nextToken();
-    } else {
-        error(lineNum, SYMBOL_NONE, ";");
-    }
+//    if (strcmp(token[pToken], ";") == 0) {
+//        advance();
+//    } else {
+//        error(lineNum, SYMBOL_NONE, ";");
+//    }
     D();
     if (strcmp(token[pToken], "end") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "end");
     }
@@ -508,7 +491,7 @@ void D() {
 
 void D_() {
     if (strcmp(token[pToken], ";") == 0) {
-        nextToken();
+        advance();
         N();
         D_();
     } else {
@@ -518,7 +501,7 @@ void D_() {
             D_();
         }
     }
-    // TODO 空的处理
+    // 空的处理
 }
 
 void N() {
@@ -533,18 +516,18 @@ void N() {
         Q();
     } else {
         error(lineNum, ERR_EXECUTE, token[pToken]);
-        nextToken();
+        advance();
     }
 }
 
 void O() {
     if (strcmp(token[pToken], "read") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "read");
     }
     if (strcmp(token[pToken], "(") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "(");
     }
@@ -553,7 +536,7 @@ void O() {
     }
     H();
     if (strcmp(token[pToken], ")") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, ")");
     }
@@ -561,12 +544,12 @@ void O() {
 
 void P() {
     if (strcmp(token[pToken], "write") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "write");
     }
     if (strcmp(token[pToken], "(") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "(");
     }
@@ -575,7 +558,7 @@ void P() {
     }
     H();
     if (strcmp(token[pToken], ")") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, ")");
     }
@@ -587,7 +570,7 @@ void Q() {
     }
     H();
     if (strcmp(token[pToken], ":=") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, ":=");
     }
@@ -601,7 +584,7 @@ void S() {
 
 void S_() {
     if (strcmp(token[pToken], "-") == 0) {
-        nextToken();
+        advance();
         T();
         S_();
     } else {
@@ -620,7 +603,7 @@ void T() {
 
 void T_() {
     if (strcmp(token[pToken], "*") == 0) {
-        nextToken();
+        advance();
         U();
         T_();
     } else {
@@ -633,37 +616,39 @@ void T_() {
 
 void U() {
     if (category[pToken] == 10) {
-        if ((!isVarExisted(token[pToken], currentPro.pname, 0)) && (!isVarExisted(token[pToken], currentPro.pname, 1))) {
-            error(lineNum, SYMBOL_UNDEFINED, token[pToken]);
+        if (strcmp(token[pToken + 1], "(") == 0) {
+            W(); // 函数调用
+        } else{
+            if ((!isVarExisted(token[pToken], currentPro.pname, 0)) && (!isVarExisted(token[pToken], currentPro.pname, 1))) {
+                error(lineNum, SYMBOL_UNDEFINED, token[pToken]);
+            }
+            I(); // 标识符
         }
-        I(); // 标识符
     } else if (category[pToken] == 11) {
         V(); // 常数
-    } else if (strcmp(token[getNextToken()], "(") == 0) {
-        W(); // 函数调用
     }
 }
 
 void V() {
     // 简化了常数和无符号整数
-    nextToken();
+    advance();
 }
 
 void R() {
     if (strcmp(token[pToken], "if") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "if");
     }
     Y();
     if (strcmp(token[pToken], "then") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "then");
     }
     N();
     if (strcmp(token[pToken], "else") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "else");
     }
@@ -679,7 +664,7 @@ void Y() {
 void Z() {
     if (category[pToken] >= 12 && category[pToken] <= 17) {
         // 关系运算符
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "relational operator");
     }
@@ -691,13 +676,13 @@ void W() {
     }
     I();
     if (strcmp(token[pToken], "(") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, "(");
     }
     S();
     if (strcmp(token[pToken], ")") == 0) {
-        nextToken();
+        advance();
     } else {
         error(lineNum, SYMBOL_NONE, ")");
     }
