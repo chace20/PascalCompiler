@@ -220,7 +220,7 @@ void error(int lineNum, int errType, const char *symbol) {
             break;
         case SYMBOL_NONE:
             printf("***LINE:%d near %s lack %s\n", lineNum, token[pToken], symbol);
-            fprintf(errFile, "***LINE:%d after %s lack %s\n", lineNum, token[pToken], symbol);
+            fprintf(errFile, "***LINE:%d near %s lack %s\n", lineNum, token[pToken], symbol);
             break;
         case SYMBOL_REDEFINED:
             printf("***LINE:%d %s symbol redefined\n", lineNum, token[pToken]);
@@ -339,7 +339,7 @@ void C_() {
 }
 
 void E() {
-    // 用pToken+1而不是getNextToken的原因是getNextToken会忽略换行
+    // 用pToken+1
     if (strcmp(token[pToken + 1], "function") == 0) {
         G();
     } else if (strcmp(token[pToken], "integer") == 0) {
