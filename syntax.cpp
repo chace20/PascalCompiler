@@ -235,11 +235,12 @@ void error(int lineNum, int errType, const char *symbol) {
 //            fprintf(errFile, "***LINE:%d procedure lack para %s\n", lineNum, symbol);
 //            break;
         case ERR_EXECUTE:
-            printf("***LINE:%d after %s no execute sentence\n", lineNum, token[pToken]);
-            fprintf(errFile, "***LINE:%d after %s no execute sentence\n", lineNum, token[pToken]);
+            printf("***LINE:%d near %s execute sentence error\n", lineNum, token[pToken]);
+            fprintf(errFile, "***LINE:%d near %s execute sentence error\n", lineNum, token[pToken]);
+            break;
         default:
-            printf("***LINE:%d unknow error\n", lineNum);
-            fprintf(errFile, "***LINE:%d unknow error\n", lineNum);
+            printf("***LINE:%d unknown error\n", lineNum);
+            fprintf(errFile, "***LINE:%d unknown error\n", lineNum);
             break;
     }
 }
@@ -260,12 +261,11 @@ bool advance() {
 
 bool isVarExisted(char *vname, char *vproc, int vkind) {
     for (int i = 0; i < varCount; ++i) {
-        // 不需要判断vkind吧
-        if ((strcmp(vname, varArray[i].vname) == 0)
-            && (strcmp(vproc, varArray[i].vproc))
-            && (vkind == varArray[i].vkind)) {
-            return true;
-        }
+//        if ((strcmp(vname, varArray[i].vname) == 0)
+//            && (strcmp(vproc, varArray[i].vproc))
+//            && (vkind == varArray[i].vkind)) {
+//            return true;
+//        }
         if (strcmp(vname, varArray[i].vname) == 0 && vkind == varArray[i].vkind) {
             return true;
         }
@@ -515,6 +515,9 @@ void N() {
         // 标识符
         Q();
     } else {
+        if(strcmp(token[pToken], "EOF") == 0) {
+            exit(0);
+        }
         error(lineNum, ERR_EXECUTE, token[pToken]);
         advance();
     }
@@ -593,7 +596,7 @@ void S_() {
             S_();
         }
     }
-    // TODO empty
+    //  empty
 }
 
 void T() {
