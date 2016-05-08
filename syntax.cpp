@@ -215,8 +215,8 @@ void output() {
 void error(int lineNum, int errType, const char *symbol) {
     switch (errType) {
         case SYMBOL_NO_MATCH:
-            printf("***LINE: %d %s symbol no match\n", lineNum, token[pToken]);
-            fprintf(errFile, "***LINE: %d %s symbol no match\n", lineNum, token[pToken]);
+            printf("***LINE: %d near %s symbol no match %s\n", lineNum, token[pToken], symbol);
+            fprintf(errFile, "***LINE:%d near %s symbol no match %s\n", lineNum, token[pToken], symbol);
             break;
         case SYMBOL_NONE:
             printf("***LINE:%d near %s lack %s\n", lineNum, token[pToken], symbol);
